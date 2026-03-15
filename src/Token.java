@@ -1,7 +1,7 @@
 import java.util.*;
 
 enum TokenType {
-    KEYWORD, IDENTIFIER, NUMBER, ASSIGN, SEMICOLON, EOF
+    KEYWORD, IDENTIFIER, NUMBER, ASSIGN, PLUS, MINUS, STAR, SLASH, LPAREN, RPAREN, SEMICOLON, EOF
 }
 
 public class Token {

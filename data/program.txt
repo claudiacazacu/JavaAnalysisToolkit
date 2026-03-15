@@ -1,4 +1,6 @@
 int x = 10;
 int y = 20;
-z = 30;
-int suma = 100;
+int suma = x + y * 2;
+print suma;
+suma = suma - 5;
+print (suma + x) / 5;

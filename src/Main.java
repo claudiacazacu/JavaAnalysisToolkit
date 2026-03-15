@@ -24,8 +24,8 @@ public class Main {
             }
 
         } catch (Exception e) {
-            System.err.println("Error reading file: " + e.getMessage());
-            System.err.println("Make sure you have a folder named 'data' with 'program.txt' inside.");
+            System.err.println("Execution failed: " + e.getMessage());
+            System.err.println("Make sure 'data/program.txt' exists and contains valid code.");
         }
     }
 }

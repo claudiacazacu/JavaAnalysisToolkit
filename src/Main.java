@@ -8,6 +8,8 @@ public class Main {
         try {
             String code = Files.readString(Path.of(filePath));
             System.out.println("Reading code from: " + filePath + "\n---");
+            System.out.println(code);
+            System.out.println("---");
 
             Lexer lexer = new Lexer(code);
             List<Token> tokens = lexer.tokenize();

@@ -1,18 +1,43 @@
 import java.util.*;
 
 enum TokenType {
-    KEYWORD, IDENTIFIER, NUMBER, ASSIGN, PLUS, MINUS, STAR, SLASH, LPAREN, RPAREN, SEMICOLON, EOF
+    KEYWORD,
+    IDENTIFIER,
+    NUMBER,
+    ASSIGN,
+    EQUAL_EQUAL,
+    BANG_EQUAL,
+    LESS,
+    LESS_EQUAL,
+    GREATER,
+    GREATER_EQUAL,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    LPAREN,
+    RPAREN,
+    LBRACE,
+    RBRACE,
+    SEMICOLON,
+    EOF
 }
 
 public class Token {
-    public TokenType type;
-    public String value;
+    public final TokenType type;
+    public final String value;
+    public final int line;
+    public final int column;
 
-    public Token(TokenType type, String value) {
+    public Token(TokenType type, String value, int line, int column) {
         this.type = type;
         this.value = value;
+        this.line = line;
+        this.column = column;
     }
 
     @Override
-    public String toString() { return "[" + type + ": " + value + "]"; }
+    public String toString() {
+        return "[" + type + ": " + value + " @ " + line + ":" + column + "]";
+    }
 }

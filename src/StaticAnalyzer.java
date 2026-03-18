@@ -1,170 +1,188 @@
 import java.util.*;
 
 public class StaticAnalyzer {
+    private final Set<String> declaredVariables = new HashSet<>();
+    private List<Token> tokens;
+    private int pos;
+
     public boolean analyze(List<Token> tokens) {
-        Set<String> declaredVariables = new HashSet<>();
-        boolean hasError = false;
-        int i = 0;
+        this.tokens = tokens;
+        this.pos = 0;
+        declaredVariables.clear();
 
-        while (i < tokens.size() && tokens.get(i).type != TokenType.EOF) {
-            Token current = tokens.get(i);
-
-            if (isKeyword(current, "int")) {
-                if (!isToken(tokens, i + 1, TokenType.IDENTIFIER)) {
-                    hasError = reportError("Expected variable name after 'int'.");
-                    break;
-                }
-
-                String variableName = tokens.get(i + 1).value;
-                if (declaredVariables.contains(variableName)) {
-                    hasError = reportError("Variable '" + variableName + "' is already declared.");
-                } else {
-                    declaredVariables.add(variableName);
-                }
-
-                i += 2;
-                if (!isToken(tokens, i, TokenType.ASSIGN)) {
-                    hasError = reportError("Expected '=' after variable declaration of '" + variableName + "'.");
-                    break;
-                }
-                i++;
-                i = consumeExpression(tokens, i, declaredVariables);
-                if (i == -1) return false;
-                if (!isToken(tokens, i, TokenType.SEMICOLON)) {
-                    return reportError("Missing ';' after declaration of '" + variableName + "'.");
-                }
-                i++;
-                continue;
+        try {
+            while (!check(TokenType.EOF)) {
+                parseStatement();
             }
+            return true;
+        } catch (IllegalStateException exception) {
+            System.err.println(exception.getMessage());
+            return false;
+        }
+    }
 
-            if (isKeyword(current, "print")) {
-                i++;
-                i = consumeExpression(tokens, i, declaredVariables);
-                if (i == -1) return false;
-                if (!isToken(tokens, i, TokenType.SEMICOLON)) {
-                    return reportError("Missing ';' after print statement.");
-                }
-                i++;
-                continue;
+    private void parseStatement() {
+        if (matchKeyword("int")) {
+            Token variable = consume(TokenType.IDENTIFIER, "Expected variable name after 'int'.");
+            if (!declaredVariables.add(variable.value)) {
+                throw error(variable, "Variable '" + variable.value + "' is already declared.");
             }
-
-            if (current.type == TokenType.IDENTIFIER) {
-                if (!declaredVariables.contains(current.value)) {
-                    hasError = reportError("Variable '" + current.value + "' used without being declared with 'int'.");
-                }
-                if (!isToken(tokens, i + 1, TokenType.ASSIGN)) {
-                    hasError = reportError("Expected '=' after variable '" + current.value + "'.");
-                    break;
-                }
-                i += 2;
-                i = consumeExpression(tokens, i, declaredVariables);
-                if (i == -1) return false;
-                if (!isToken(tokens, i, TokenType.SEMICOLON)) {
-                    return reportError("Missing ';' after assignment to '" + current.value + "'.");
-                }
-                i++;
-                continue;
-            }
-
-            return reportError("Unexpected token '" + current.value + "'.");
+            consume(TokenType.ASSIGN, "Expected '=' after variable declaration.");
+            parseExpression();
+            consume(TokenType.SEMICOLON, "Missing ';' after declaration.");
+            return;
         }
 
-        return !hasError;
-    }
-
-    private int consumeExpression(List<Token> tokens, int index, Set<String> declaredVariables) {
-        int balance = 0;
-        boolean expectsOperand = true;
-
-        while (index < tokens.size()) {
-            Token token = tokens.get(index);
-            if (token.type == TokenType.SEMICOLON && balance == 0) {
-                return expectsOperand ? fail("Incomplete expression before ';'.") : index;
-            }
-
-            if (token.type == TokenType.LPAREN) {
-                if (!expectsOperand) {
-                    return fail("Missing operator before '('.");
-                }
-                balance++;
-                index++;
-                continue;
-            }
-
-            if (token.type == TokenType.RPAREN) {
-                if (balance == 0) {
-                    return fail("Closing ')' without matching '('.");
-                }
-                balance--;
-                index++;
-                expectsOperand = false;
-                continue;
-            }
-
-            if (token.type == TokenType.IDENTIFIER) {
-                if (!expectsOperand) {
-                    return fail("Missing operator before variable '" + token.value + "'.");
-                }
-                if (!declaredVariables.contains(token.value)) {
-                    return fail("Variable '" + token.value + "' used before declaration.");
-                }
-                index++;
-                expectsOperand = false;
-                continue;
-            }
-
-            if (token.type == TokenType.NUMBER) {
-                if (!expectsOperand) {
-                    return fail("Missing operator before number '" + token.value + "'.");
-                }
-                index++;
-                expectsOperand = false;
-                continue;
-            }
-
-            if (isOperator(token.type)) {
-                if (expectsOperand && token.type != TokenType.MINUS) {
-                    return fail("Operator '" + token.value + "' cannot appear here.");
-                }
-                if (!expectsOperand && token.type == TokenType.MINUS) {
-                    index++;
-                    expectsOperand = true;
-                    continue;
-                }
-                if (expectsOperand) {
-                    index++;
-                    continue;
-                }
-                index++;
-                expectsOperand = true;
-                continue;
-            }
-
-            return fail("Invalid token '" + token.value + "' inside expression.");
+        if (matchKeyword("print")) {
+            parseExpression();
+            consume(TokenType.SEMICOLON, "Missing ';' after print statement.");
+            return;
         }
 
-        return fail("Unexpected end of tokens while reading expression.");
+        if (matchKeyword("if")) {
+            consume(TokenType.LPAREN, "Expected '(' after 'if'.");
+            parseCondition();
+            consume(TokenType.RPAREN, "Expected ')' after if condition.");
+            parseBlock();
+            return;
+        }
+
+        if (matchKeyword("while")) {
+            consume(TokenType.LPAREN, "Expected '(' after 'while'.");
+            parseCondition();
+            consume(TokenType.RPAREN, "Expected ')' after while condition.");
+            parseBlock();
+            return;
+        }
+
+        if (check(TokenType.IDENTIFIER)) {
+            Token variable = advance();
+            if (!declaredVariables.contains(variable.value)) {
+                throw error(variable, "Variable '" + variable.value + "' used before declaration.");
+            }
+            consume(TokenType.ASSIGN, "Expected '=' after variable name.");
+            parseExpression();
+            consume(TokenType.SEMICOLON, "Missing ';' after assignment.");
+            return;
+        }
+
+        throw error(peek(), "Unexpected token '" + peek().value + "'.");
     }
 
-    private boolean isOperator(TokenType type) {
-        return type == TokenType.PLUS || type == TokenType.MINUS || type == TokenType.STAR || type == TokenType.SLASH;
+    private void parseBlock() {
+        consume(TokenType.LBRACE, "Expected '{' to start a block.");
+        while (!check(TokenType.RBRACE) && !check(TokenType.EOF)) {
+            parseStatement();
+        }
+        consume(TokenType.RBRACE, "Expected '}' to close the block.");
     }
 
-    private boolean isKeyword(Token token, String value) {
-        return token.type == TokenType.KEYWORD && token.value.equals(value);
+    private void parseCondition() {
+        parseExpression();
+        if (isComparisonOperator(peek().type)) {
+            advance();
+            parseExpression();
+        }
     }
 
-    private boolean isToken(List<Token> tokens, int index, TokenType type) {
-        return index < tokens.size() && tokens.get(index).type == type;
+    private void parseExpression() {
+        parseTerm();
+        while (match(TokenType.PLUS) || match(TokenType.MINUS)) {
+            parseTerm();
+        }
     }
 
-    private boolean reportError(String message) {
-        System.err.println("[STATIC ANALYSIS ERROR] " + message);
-        return true;
+    private void parseTerm() {
+        parseUnary();
+        while (match(TokenType.STAR) || match(TokenType.SLASH)) {
+            parseUnary();
+        }
     }
 
-    private int fail(String message) {
-        reportError(message);
-        return -1;
+    private void parseUnary() {
+        if (match(TokenType.MINUS)) {
+            parseUnary();
+            return;
+        }
+        parsePrimary();
+    }
+
+    private void parsePrimary() {
+        if (match(TokenType.NUMBER)) {
+            return;
+        }
+
+        if (match(TokenType.IDENTIFIER)) {
+            Token identifier = previous();
+            if (!declaredVariables.contains(identifier.value)) {
+                throw error(identifier, "Variable '" + identifier.value + "' used before declaration.");
+            }
+            return;
+        }
+
+        if (match(TokenType.LPAREN)) {
+            parseExpression();
+            consume(TokenType.RPAREN, "Expected ')' after expression.");
+            return;
+        }
+
+        throw error(peek(), "Expected a number, variable, or parenthesized expression.");
+    }
+
+    private boolean isComparisonOperator(TokenType type) {
+        return type == TokenType.EQUAL_EQUAL
+                || type == TokenType.BANG_EQUAL
+                || type == TokenType.LESS
+                || type == TokenType.LESS_EQUAL
+                || type == TokenType.GREATER
+                || type == TokenType.GREATER_EQUAL;
+    }
+
+    private boolean matchKeyword(String value) {
+        if (check(TokenType.KEYWORD) && peek().value.equals(value)) {
+            advance();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean match(TokenType type) {
+        if (check(type)) {
+            advance();
+            return true;
+        }
+        return false;
+    }
+
+    private Token consume(TokenType type, String message) {
+        if (check(type)) {
+            return advance();
+        }
+        throw error(peek(), message);
+    }
+
+    private boolean check(TokenType type) {
+        return peek().type == type;
+    }
+
+    private Token advance() {
+        if (!check(TokenType.EOF)) {
+            pos++;
+        }
+        return previous();
+    }
+
+    private Token peek() {
+        return tokens.get(pos);
+    }
+
+    private Token previous() {
+        return tokens.get(pos - 1);
+    }
+
+    private IllegalStateException error(Token token, String message) {
+        return new IllegalStateException(
+                "[STATIC ANALYSIS ERROR] line " + token.line + ", column " + token.column + ": " + message
+        );
     }
 }

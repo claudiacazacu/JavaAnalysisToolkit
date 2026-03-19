@@ -4,6 +4,8 @@ enum TokenType {
     KEYWORD,
     IDENTIFIER,
     NUMBER,
+    STRING_LITERAL,
+    BOOLEAN_LITERAL,
     ASSIGN,
     EQUAL_EQUAL,
     BANG_EQUAL,

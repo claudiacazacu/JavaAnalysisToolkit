@@ -28,16 +28,21 @@ public class Lexer {
                     advance();
                 }
                 tokens.add(new Token(TokenType.NUMBER, sb.toString(), startLine, startColumn));
+            } else if (curr == '"') {
+                tokens.add(readStringLiteral());
             } else if (Character.isLetter(curr)) {
                 int startLine = line;
                 int startColumn = column;
                 StringBuilder sb = new StringBuilder();
-                while (pos < input.length() && Character.isLetterOrDigit(input.charAt(pos))) {
+                while (pos < input.length() && (Character.isLetterOrDigit(input.charAt(pos)) || input.charAt(pos) == '_')) {
                     sb.append(input.charAt(pos));
                     advance();
                 }
                 String val = sb.toString();
-                tokens.add(new Token(isKeyword(val) ? TokenType.KEYWORD : TokenType.IDENTIFIER, val, startLine, startColumn));
+                TokenType type = isBooleanLiteral(val)
+                        ? TokenType.BOOLEAN_LITERAL
+                        : (isKeyword(val) ? TokenType.KEYWORD : TokenType.IDENTIFIER);
+                tokens.add(new Token(type, val, startLine, startColumn));
             } else if (curr == '=' && peekNext() == '=') {
                 tokens.add(token(TokenType.EQUAL_EQUAL, "=="));
                 advance();
@@ -101,11 +106,70 @@ public class Lexer {
     }
 
     private boolean isKeyword(String value) {
-        return value.equals("int") || value.equals("print") || value.equals("if") || value.equals("while");
+        return value.equals("int")
+                || value.equals("bool")
+                || value.equals("string")
+                || value.equals("print")
+                || value.equals("if")
+                || value.equals("else")
+                || value.equals("while");
+    }
+
+    private boolean isBooleanLiteral(String value) {
+        return value.equals("true") || value.equals("false");
     }
 
     private Token token(TokenType type, String value) {
         return new Token(type, value, line, column);
+    }
+
+    private Token readStringLiteral() {
+        int startLine = line;
+        int startColumn = column;
+        advance();
+
+        StringBuilder sb = new StringBuilder();
+        while (pos < input.length()) {
+            char curr = input.charAt(pos);
+            if (curr == '"') {
+                advance();
+                return new Token(TokenType.STRING_LITERAL, sb.toString(), startLine, startColumn);
+            }
+
+            if (curr == '\\') {
+                advance();
+                if (pos >= input.length()) {
+                    break;
+                }
+
+                char escaped = input.charAt(pos);
+                sb.append(switch (escaped) {
+                    case 'n' -> '\n';
+                    case 'r' -> '\r';
+                    case 't' -> '\t';
+                    case '"' -> '"';
+                    case '\\' -> '\\';
+                    default -> throw new IllegalArgumentException(
+                            "Unsupported escape sequence '\\" + escaped + "' at line " + line + ", column " + column
+                    );
+                });
+                advance();
+                continue;
+            }
+
+            if (curr == '\n' || curr == '\r') {
+                throw new IllegalArgumentException(
+                        "Unterminated string literal at line " + startLine + ", column " + startColumn
+                );
+            }
+
+            sb.append(curr);
+            advance();
+        }
+
+        throw new IllegalArgumentException(
+                "Unterminated string literal at line " + startLine + ", column " + startColumn
+        );
     }
 
     private char peekNext() {

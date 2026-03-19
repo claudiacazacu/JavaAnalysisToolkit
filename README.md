@@ -14,18 +14,24 @@ At the moment, the project can read a source file, tokenize it, validate the pro
   - assignment validation
   - basic expression validation
   - block validation for control flow
-- Runtime interpreter with integer memory storage
+- Runtime interpreter with typed memory storage
 - Integer variable declarations with `int`
+- Boolean variable declarations with `bool`
+- String variable declarations with `string`
 - Variable reassignment
 - Arithmetic expressions with:
   - `+`
   - `-`
   - `*`
   - `/`
+- String concatenation with `+`
 - Unary minus support
 - Parenthesized expressions
+- Boolean literals: `true`, `false`
+- String literals with basic escape support
 - `print` statements
 - `if` blocks
+- `if` / `else` blocks
 - `while` loops
 - Comparison operators:
   - `==`
@@ -40,15 +46,27 @@ At the moment, the project can read a source file, tokenize it, validate the pro
 ```txt
 int x = 3;
 int total = 0;
+bool crossedThreshold = false;
+string status = "starting";
 
 while (x > 0) {
     total = total + x;
 
     if (total >= 5) {
-        print total;
+        crossedThreshold = true;
+        status = "threshold reached";
+    } else {
+        status = "still below threshold";
     }
 
+    print status;
     x = x - 1;
+}
+
+if (crossedThreshold) {
+    print "done";
+} else {
+    print "never reached";
 }
 
 print total;
@@ -61,6 +79,8 @@ print total;
 - `src/Token.java` - token model and token type definitions
 - `src/StaticAnalyzer.java` - validates declarations, assignments, expressions, and blocks
 - `src/Interpreter.java` - executes valid programs
+- `src/ValueType.java` - shared language type definitions
+- `src/RuntimeValue.java` - typed runtime value container used by the interpreter
 - `data/program.txt` - sample source program
 
 ## How It Works
@@ -94,8 +114,6 @@ The project will continue to be developed. In practice, that means improving bot
 
 Planned next steps include:
 
-- adding `else` branches for conditional execution
-- introducing additional data types such as `bool` and `string`
 - supporting comments in the source language
 - separating parsing into a dedicated parser layer instead of relying directly on token-driven execution
 - building an AST (Abstract Syntax Tree) for cleaner semantic analysis and interpretation

@@ -1,14 +1,26 @@
 int x = 3;
 int total = 0;
+bool crossedThreshold = false;
+string status = "starting";
 
 while (x > 0) {
     total = total + x;
 
     if (total >= 5) {
-        print total;
+        crossedThreshold = true;
+        status = "threshold reached";
+    } else {
+        status = "still below threshold";
     }
 
+    print status;
     x = x - 1;
+}
+
+if (crossedThreshold) {
+    print "done";
+} else {
+    print "never reached";
 }
 
 print total;

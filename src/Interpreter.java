@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class Interpreter {
-    private final Map<String, Integer> memory = new LinkedHashMap<>();
+    private final Map<String, RuntimeValue> memory = new LinkedHashMap<>();
     private List<Token> tokens;
     private int pos;
 
@@ -18,20 +18,22 @@ public class Interpreter {
     }
 
     private void executeStatement() {
-        if (matchKeyword("int")) {
-            String name = consume(TokenType.IDENTIFIER, "Expected variable name after 'int'.").value;
+        if (checkDeclarationKeyword()) {
+            ValueType declaredType = ValueType.fromKeyword(advance().value);
+            String name = consume(TokenType.IDENTIFIER, "Expected variable name after type keyword.").value;
             consume(TokenType.ASSIGN, "Expected '=' after variable declaration.");
-            int value = parseExpression();
+            RuntimeValue value = parseExpression();
+            ensureAssignable(declaredType, value, previous());
             consume(TokenType.SEMICOLON, "Expected ';' after declaration.");
             memory.put(name, value);
-            System.out.println("Declared variable: " + name + " = " + value);
+            System.out.println("Declared variable: " + name + " (" + declaredType.keyword() + ") = " + value.displayValue());
             return;
         }
 
         if (matchKeyword("print")) {
-            int value = parseExpression();
+            RuntimeValue value = parseExpression();
             consume(TokenType.SEMICOLON, "Expected ';' after print statement.");
-            System.out.println("Print => " + value);
+            System.out.println("Print => " + value.displayValue());
             return;
         }
 
@@ -46,12 +48,14 @@ public class Interpreter {
         }
 
         if (check(TokenType.IDENTIFIER)) {
-            String name = advance().value;
+            Token identifier = advance();
+            String name = identifier.value;
             consume(TokenType.ASSIGN, "Expected '=' after variable name.");
-            int value = parseExpression();
+            RuntimeValue value = parseExpression();
+            ensureAssignable(requireDeclaredValue(identifier).type(), value, identifier);
             consume(TokenType.SEMICOLON, "Expected ';' after assignment.");
             memory.put(name, value);
-            System.out.println("Updated variable: " + name + " = " + value);
+            System.out.println("Updated variable: " + name + " = " + value.displayValue());
             return;
         }
 
@@ -67,10 +71,23 @@ public class Interpreter {
 
         int blockStart = pos;
         int blockEnd = findBlockEnd(blockStart);
+        int nextPos = blockEnd + 1;
+        boolean hasElse = nextPos < tokens.size()
+                && tokens.get(nextPos).type == TokenType.KEYWORD
+                && tokens.get(nextPos).value.equals("else");
+        int elseBlockStart = -1;
+        int elseBlockEnd = -1;
+        if (hasElse) {
+            elseBlockStart = nextPos + 1;
+            elseBlockEnd = findBlockEnd(elseBlockStart);
+        }
+
         if (evaluateCondition(conditionStart, conditionEnd)) {
             executeRange(blockStart + 1, blockEnd);
+        } else if (hasElse) {
+            executeRange(elseBlockStart + 1, elseBlockEnd);
         }
-        pos = blockEnd + 1;
+        pos = hasElse ? elseBlockEnd + 1 : nextPos;
     }
 
     private void executeWhile() {
@@ -120,36 +137,46 @@ public class Interpreter {
 
     private boolean evaluateCondition(int startInclusive, int endExclusive) {
         ExpressionCursor cursor = new ExpressionCursor(startInclusive, endExclusive);
-        int left = parseExpression(cursor);
+        RuntimeValue left = parseExpression(cursor);
         if (cursor.hasNext()) {
             Token operator = cursor.advance();
-            int right = parseExpression(cursor);
+            RuntimeValue right = parseExpression(cursor);
             if (cursor.hasNext()) {
                 throw error(cursor.peek(), "Unexpected token in condition.");
             }
             return compare(left, right, operator);
         }
-        return left != 0;
+        if (left.type() == ValueType.BOOL) {
+            return left.asBoolean();
+        }
+        if (left.type() == ValueType.INT) {
+            return left.asInt() != 0;
+        }
+        throw error("String expressions cannot be used as conditions.");
     }
 
-    private boolean compare(int left, int right, Token operator) {
+    private boolean compare(RuntimeValue left, RuntimeValue right, Token operator) {
+        if (left.type() != right.type()) {
+            throw error(operator, "Comparison operands must have the same type.");
+        }
+
         return switch (operator.type) {
-            case EQUAL_EQUAL -> left == right;
-            case BANG_EQUAL -> left != right;
-            case LESS -> left < right;
-            case LESS_EQUAL -> left <= right;
-            case GREATER -> left > right;
-            case GREATER_EQUAL -> left >= right;
+            case EQUAL_EQUAL -> left.value().equals(right.value());
+            case BANG_EQUAL -> !left.value().equals(right.value());
+            case LESS -> compareIntegers(left, right, operator, (a, b) -> a < b);
+            case LESS_EQUAL -> compareIntegers(left, right, operator, (a, b) -> a <= b);
+            case GREATER -> compareIntegers(left, right, operator, (a, b) -> a > b);
+            case GREATER_EQUAL -> compareIntegers(left, right, operator, (a, b) -> a >= b);
             default -> throw error(operator, "Invalid comparison operator '" + operator.value + "'.");
         };
     }
 
-    private int parseExpression() {
-        int value = parseTerm();
+    private RuntimeValue parseExpression() {
+        RuntimeValue value = parseTerm();
         while (match(TokenType.PLUS) || match(TokenType.MINUS)) {
             Token operator = previous();
-            int right = parseTerm();
-            value = operator.type == TokenType.PLUS ? value + right : value - right;
+            RuntimeValue right = parseTerm();
+            value = applyAdditiveOperator(value, right, operator);
         }
         return value;
     }
@@ -162,92 +189,154 @@ public class Interpreter {
         }
     }
 
-    private int parseTerm() {
-        int value = parseFactor();
+    private RuntimeValue parseTerm() {
+        RuntimeValue value = parseFactor();
         while (match(TokenType.STAR) || match(TokenType.SLASH)) {
             Token operator = previous();
-            int right = parseFactor();
-            if (operator.type == TokenType.STAR) {
-                value *= right;
-            } else {
-                if (right == 0) {
-                    throw error("Division by zero is not allowed.");
-                }
-                value /= right;
-            }
+            RuntimeValue right = parseFactor();
+            value = applyMultiplicativeOperator(value, right, operator);
         }
         return value;
     }
 
-    private int parseFactor() {
+    private RuntimeValue parseFactor() {
         if (match(TokenType.MINUS)) {
-            return -parseFactor();
+            Token operator = previous();
+            RuntimeValue value = parseFactor();
+            if (value.type() != ValueType.INT) {
+                throw error(operator, "Unary '-' only supports 'int' operands.");
+            }
+            return new RuntimeValue(ValueType.INT, -value.asInt());
         }
         if (match(TokenType.NUMBER)) {
-            return Integer.parseInt(previous().value);
+            return new RuntimeValue(ValueType.INT, Integer.parseInt(previous().value));
+        }
+        if (match(TokenType.STRING_LITERAL)) {
+            return new RuntimeValue(ValueType.STRING, previous().value);
+        }
+        if (match(TokenType.BOOLEAN_LITERAL)) {
+            return new RuntimeValue(ValueType.BOOL, Boolean.parseBoolean(previous().value));
         }
         if (match(TokenType.IDENTIFIER)) {
-            String name = previous().value;
-            if (!memory.containsKey(name)) {
-                throw error("Variable '" + name + "' does not have a runtime value.");
-            }
-            return memory.get(name);
+            return requireDeclaredValue(previous());
         }
         if (match(TokenType.LPAREN)) {
-            int value = parseExpression();
+            RuntimeValue value = parseExpression();
             consume(TokenType.RPAREN, "Expected ')' after expression.");
             return value;
         }
         throw error("Expected a number, variable, or parenthesized expression.");
     }
 
-    private int parseExpression(ExpressionCursor cursor) {
-        int value = parseTerm(cursor);
+    private RuntimeValue parseExpression(ExpressionCursor cursor) {
+        RuntimeValue value = parseTerm(cursor);
         while (cursor.match(TokenType.PLUS) || cursor.match(TokenType.MINUS)) {
             Token operator = cursor.previous();
-            int right = parseTerm(cursor);
-            value = operator.type == TokenType.PLUS ? value + right : value - right;
+            RuntimeValue right = parseTerm(cursor);
+            value = applyAdditiveOperator(value, right, operator);
         }
         return value;
     }
 
-    private int parseTerm(ExpressionCursor cursor) {
-        int value = parseFactor(cursor);
+    private RuntimeValue parseTerm(ExpressionCursor cursor) {
+        RuntimeValue value = parseFactor(cursor);
         while (cursor.match(TokenType.STAR) || cursor.match(TokenType.SLASH)) {
             Token operator = cursor.previous();
-            int right = parseFactor(cursor);
-            if (operator.type == TokenType.STAR) {
-                value *= right;
-            } else {
-                if (right == 0) {
-                    throw error(operator, "Division by zero is not allowed.");
-                }
-                value /= right;
-            }
+            RuntimeValue right = parseFactor(cursor);
+            value = applyMultiplicativeOperator(value, right, operator);
         }
         return value;
     }
 
-    private int parseFactor(ExpressionCursor cursor) {
+    private RuntimeValue parseFactor(ExpressionCursor cursor) {
         if (cursor.match(TokenType.MINUS)) {
-            return -parseFactor(cursor);
+            Token operator = cursor.previous();
+            RuntimeValue value = parseFactor(cursor);
+            if (value.type() != ValueType.INT) {
+                throw error(operator, "Unary '-' only supports 'int' operands.");
+            }
+            return new RuntimeValue(ValueType.INT, -value.asInt());
         }
         if (cursor.match(TokenType.NUMBER)) {
-            return Integer.parseInt(cursor.previous().value);
+            return new RuntimeValue(ValueType.INT, Integer.parseInt(cursor.previous().value));
+        }
+        if (cursor.match(TokenType.STRING_LITERAL)) {
+            return new RuntimeValue(ValueType.STRING, cursor.previous().value);
+        }
+        if (cursor.match(TokenType.BOOLEAN_LITERAL)) {
+            return new RuntimeValue(ValueType.BOOL, Boolean.parseBoolean(cursor.previous().value));
         }
         if (cursor.match(TokenType.IDENTIFIER)) {
-            String name = cursor.previous().value;
-            if (!memory.containsKey(name)) {
-                throw error(cursor.previous(), "Variable '" + name + "' does not have a runtime value.");
-            }
-            return memory.get(name);
+            return requireDeclaredValue(cursor.previous());
         }
         if (cursor.match(TokenType.LPAREN)) {
-            int value = parseExpression(cursor);
+            RuntimeValue value = parseExpression(cursor);
             cursor.consume(TokenType.RPAREN, "Expected ')' after expression.");
             return value;
         }
         throw error(cursor.peek(), "Expected a number, variable, or parenthesized expression.");
+    }
+
+    private RuntimeValue applyAdditiveOperator(RuntimeValue left, RuntimeValue right, Token operator) {
+        if (operator.type == TokenType.PLUS && left.type() == ValueType.STRING && right.type() == ValueType.STRING) {
+            return new RuntimeValue(ValueType.STRING, left.asString() + right.asString());
+        }
+
+        if (left.type() == ValueType.INT && right.type() == ValueType.INT) {
+            int result = operator.type == TokenType.PLUS ? left.asInt() + right.asInt() : left.asInt() - right.asInt();
+            return new RuntimeValue(ValueType.INT, result);
+        }
+
+        throw error(
+                operator,
+                "Operator '" + operator.value + "' does not support operands of type '" + left.type().keyword()
+                        + "' and '" + right.type().keyword() + "'."
+        );
+    }
+
+    private RuntimeValue applyMultiplicativeOperator(RuntimeValue left, RuntimeValue right, Token operator) {
+        if (left.type() != ValueType.INT || right.type() != ValueType.INT) {
+            throw error(operator, "Operators '*' and '/' only support 'int' operands.");
+        }
+
+        if (operator.type == TokenType.SLASH && right.asInt() == 0) {
+            throw error(operator, "Division by zero is not allowed.");
+        }
+
+        int result = operator.type == TokenType.STAR
+                ? left.asInt() * right.asInt()
+                : left.asInt() / right.asInt();
+        return new RuntimeValue(ValueType.INT, result);
+    }
+
+    private boolean compareIntegers(RuntimeValue left, RuntimeValue right, Token operator, IntComparator comparator) {
+        if (left.type() != ValueType.INT || right.type() != ValueType.INT) {
+            throw error(operator, "Relational comparisons only support 'int' operands.");
+        }
+        return comparator.compare(left.asInt(), right.asInt());
+    }
+
+    private void ensureAssignable(ValueType targetType, RuntimeValue value, Token token) {
+        if (targetType != value.type()) {
+            throw error(
+                    token,
+                    "Cannot assign value of type '" + value.type().keyword()
+                            + "' to variable of type '" + targetType.keyword() + "'."
+            );
+        }
+    }
+
+    private RuntimeValue requireDeclaredValue(Token token) {
+        RuntimeValue value = memory.get(token.value);
+        if (value == null) {
+            throw error(token, "Variable '" + token.value + "' does not have a runtime value.");
+        }
+        return value;
+    }
+
+    private boolean checkDeclarationKeyword() {
+        return check(TokenType.KEYWORD)
+                && (peek().value.equals("int") || peek().value.equals("bool") || peek().value.equals("string"));
     }
 
     private boolean isComparisonOperator(TokenType type) {
@@ -309,6 +398,11 @@ public class Interpreter {
         return new IllegalStateException(
                 "[INTERPRETER ERROR] line " + token.line + ", column " + token.column + ": " + message
         );
+    }
+
+    @FunctionalInterface
+    private interface IntComparator {
+        boolean compare(int left, int right);
     }
 
     private final class ExpressionCursor {

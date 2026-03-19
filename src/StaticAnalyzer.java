@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class StaticAnalyzer {
-    private final Set<String> declaredVariables = new HashSet<>();
+    private final Map<String, ValueType> declaredVariables = new HashMap<>();
     private List<Token> tokens;
     private int pos;
 
@@ -22,14 +22,17 @@ public class StaticAnalyzer {
     }
 
     private void parseStatement() {
-        if (matchKeyword("int")) {
-            Token variable = consume(TokenType.IDENTIFIER, "Expected variable name after 'int'.");
-            if (!declaredVariables.add(variable.value)) {
+        if (checkDeclarationKeyword()) {
+            ValueType declaredType = ValueType.fromKeyword(advance().value);
+            Token variable = consume(TokenType.IDENTIFIER, "Expected variable name after type keyword.");
+            if (declaredVariables.containsKey(variable.value)) {
                 throw error(variable, "Variable '" + variable.value + "' is already declared.");
             }
             consume(TokenType.ASSIGN, "Expected '=' after variable declaration.");
-            parseExpression();
+            ValueType expressionType = parseExpression();
+            ensureAssignable(declaredType, expressionType, variable);
             consume(TokenType.SEMICOLON, "Missing ';' after declaration.");
+            declaredVariables.put(variable.value, declaredType);
             return;
         }
 
@@ -41,27 +44,33 @@ public class StaticAnalyzer {
 
         if (matchKeyword("if")) {
             consume(TokenType.LPAREN, "Expected '(' after 'if'.");
-            parseCondition();
+            parseCondition(peek());
             consume(TokenType.RPAREN, "Expected ')' after if condition.");
             parseBlock();
+            if (matchKeyword("else")) {
+                parseBlock();
+            }
             return;
         }
 
         if (matchKeyword("while")) {
             consume(TokenType.LPAREN, "Expected '(' after 'while'.");
-            parseCondition();
+            parseCondition(peek());
             consume(TokenType.RPAREN, "Expected ')' after while condition.");
             parseBlock();
             return;
         }
 
+        if (matchKeyword("else")) {
+            throw error(previous(), "Unexpected 'else' without a matching 'if'.");
+        }
+
         if (check(TokenType.IDENTIFIER)) {
             Token variable = advance();
-            if (!declaredVariables.contains(variable.value)) {
-                throw error(variable, "Variable '" + variable.value + "' used before declaration.");
-            }
+            ValueType declaredType = requireDeclaredVariable(variable);
             consume(TokenType.ASSIGN, "Expected '=' after variable name.");
-            parseExpression();
+            ValueType expressionType = parseExpression();
+            ensureAssignable(declaredType, expressionType, variable);
             consume(TokenType.SEMICOLON, "Missing ';' after assignment.");
             return;
         }
@@ -77,56 +86,132 @@ public class StaticAnalyzer {
         consume(TokenType.RBRACE, "Expected '}' to close the block.");
     }
 
-    private void parseCondition() {
-        parseExpression();
+    private void parseCondition(Token conditionToken) {
+        ValueType leftType = parseExpression();
         if (isComparisonOperator(peek().type)) {
-            advance();
-            parseExpression();
+            Token operator = advance();
+            ValueType rightType = parseExpression();
+            validateComparison(operator, leftType, rightType);
+            return;
+        }
+
+        if (leftType == ValueType.STRING) {
+            throw error(conditionToken, "String expressions cannot be used as conditions.");
         }
     }
 
-    private void parseExpression() {
-        parseTerm();
+    private ValueType parseExpression() {
+        ValueType type = parseTerm();
         while (match(TokenType.PLUS) || match(TokenType.MINUS)) {
-            parseTerm();
+            Token operator = previous();
+            ValueType rightType = parseTerm();
+            type = mergeAdditiveTypes(operator, type, rightType);
         }
+        return type;
     }
 
-    private void parseTerm() {
-        parseUnary();
+    private ValueType parseTerm() {
+        ValueType type = parseUnary();
         while (match(TokenType.STAR) || match(TokenType.SLASH)) {
-            parseUnary();
+            Token operator = previous();
+            ValueType rightType = parseUnary();
+            if (type != ValueType.INT || rightType != ValueType.INT) {
+                throw error(operator, "Operators '*' and '/' only support 'int' operands.");
+            }
+            type = ValueType.INT;
         }
+        return type;
     }
 
-    private void parseUnary() {
+    private ValueType parseUnary() {
         if (match(TokenType.MINUS)) {
-            parseUnary();
-            return;
+            Token operator = previous();
+            ValueType operandType = parseUnary();
+            if (operandType != ValueType.INT) {
+                throw error(operator, "Unary '-' only supports 'int' operands.");
+            }
+            return ValueType.INT;
         }
-        parsePrimary();
+        return parsePrimary();
     }
 
-    private void parsePrimary() {
+    private ValueType parsePrimary() {
         if (match(TokenType.NUMBER)) {
-            return;
+            return ValueType.INT;
+        }
+
+        if (match(TokenType.STRING_LITERAL)) {
+            return ValueType.STRING;
+        }
+
+        if (match(TokenType.BOOLEAN_LITERAL)) {
+            return ValueType.BOOL;
         }
 
         if (match(TokenType.IDENTIFIER)) {
             Token identifier = previous();
-            if (!declaredVariables.contains(identifier.value)) {
-                throw error(identifier, "Variable '" + identifier.value + "' used before declaration.");
+            return requireDeclaredVariable(identifier);
+        }
+
+        if (match(TokenType.LPAREN)) {
+            ValueType type = parseExpression();
+            consume(TokenType.RPAREN, "Expected ')' after expression.");
+            return type;
+        }
+
+        throw error(peek(), "Expected a number, variable, or parenthesized expression.");
+    }
+
+    private ValueType mergeAdditiveTypes(Token operator, ValueType leftType, ValueType rightType) {
+        if (operator.type == TokenType.PLUS && leftType == ValueType.STRING && rightType == ValueType.STRING) {
+            return ValueType.STRING;
+        }
+
+        if (leftType == ValueType.INT && rightType == ValueType.INT) {
+            return ValueType.INT;
+        }
+
+        throw error(
+                operator,
+                "Operator '" + operator.value + "' does not support operands of type '" + leftType.keyword()
+                        + "' and '" + rightType.keyword() + "'."
+        );
+    }
+
+    private void validateComparison(Token operator, ValueType leftType, ValueType rightType) {
+        if (operator.type == TokenType.EQUAL_EQUAL || operator.type == TokenType.BANG_EQUAL) {
+            if (leftType != rightType) {
+                throw error(operator, "Equality comparisons require both operands to have the same type.");
             }
             return;
         }
 
-        if (match(TokenType.LPAREN)) {
-            parseExpression();
-            consume(TokenType.RPAREN, "Expected ')' after expression.");
-            return;
+        if (leftType != ValueType.INT || rightType != ValueType.INT) {
+            throw error(operator, "Relational comparisons only support 'int' operands.");
         }
+    }
 
-        throw error(peek(), "Expected a number, variable, or parenthesized expression.");
+    private void ensureAssignable(ValueType targetType, ValueType expressionType, Token token) {
+        if (targetType != expressionType) {
+            throw error(
+                    token,
+                    "Cannot assign expression of type '" + expressionType.keyword()
+                            + "' to variable of type '" + targetType.keyword() + "'."
+            );
+        }
+    }
+
+    private ValueType requireDeclaredVariable(Token variable) {
+        ValueType variableType = declaredVariables.get(variable.value);
+        if (variableType == null) {
+            throw error(variable, "Variable '" + variable.value + "' used before declaration.");
+        }
+        return variableType;
+    }
+
+    private boolean checkDeclarationKeyword() {
+        return check(TokenType.KEYWORD)
+                && (peek().value.equals("int") || peek().value.equals("bool") || peek().value.equals("string"));
     }
 
     private boolean isComparisonOperator(TokenType type) {

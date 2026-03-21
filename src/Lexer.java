@@ -19,6 +19,16 @@ public class Lexer {
                 continue;
             }
 
+            if (curr == '/' && peekNext() == '/') {
+                skipLineComment();
+                continue;
+            }
+
+            if (curr == '/' && peekNext() == '*') {
+                skipBlockComment();
+                continue;
+            }
+
             if (Character.isDigit(curr)) {
                 int startLine = line;
                 int startColumn = column;
@@ -177,6 +187,46 @@ public class Lexer {
             return '\0';
         }
         return input.charAt(pos + 1);
+    }
+
+    private void skipLineComment() {
+        advance();
+        advance();
+
+        while (pos < input.length()) {
+            char curr = input.charAt(pos);
+            if (curr == '\n' || curr == '\r') {
+                return;
+            }
+            advance();
+        }
+    }
+
+    private void skipBlockComment() {
+        int startLine = line;
+        int startColumn = column;
+        advance();
+        advance();
+
+        while (pos < input.length()) {
+            char curr = input.charAt(pos);
+            if (curr == '*' && peekNext() == '/') {
+                advance();
+                advance();
+                return;
+            }
+
+            if (curr == '\n' || curr == '\r') {
+                advanceWhitespace(curr);
+                continue;
+            }
+
+            advance();
+        }
+
+        throw new IllegalArgumentException(
+                "Unterminated block comment at line " + startLine + ", column " + startColumn
+        );
     }
 
     private void advanceWhitespace(char curr) {

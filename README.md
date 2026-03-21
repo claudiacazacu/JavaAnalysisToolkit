@@ -29,6 +29,9 @@ At the moment, the project can read a source file, tokenize it, validate the pro
 - Parenthesized expressions
 - Boolean literals: `true`, `false`
 - String literals with basic escape support
+- Source comments:
+  - `// line comments`
+  - `/* block comments */`
 - `print` statements
 - `if` blocks
 - `if` / `else` blocks
@@ -44,12 +47,15 @@ At the moment, the project can read a source file, tokenize it, validate the pro
 ## Example Program
 
 ```txt
+// Countdown with state tracking
 int x = 3;
 int total = 0;
 bool crossedThreshold = false;
 string status = "starting";
 
 while (x > 0) {
+    /* Keep a running total
+       until the loop finishes. */
     total = total + x;
 
     if (total >= 5) {
@@ -114,7 +120,6 @@ The project will continue to be developed. In practice, that means improving bot
 
 Planned next steps include:
 
-- supporting comments in the source language
 - separating parsing into a dedicated parser layer instead of relying directly on token-driven execution
 - building an AST (Abstract Syntax Tree) for cleaner semantic analysis and interpretation
 - improving error reporting further with more precise diagnostics

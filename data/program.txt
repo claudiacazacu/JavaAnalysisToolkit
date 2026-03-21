@@ -1,9 +1,12 @@
+// Countdown with state tracking
 int x = 3;
 int total = 0;
 bool crossedThreshold = false;
 string status = "starting";
 
 while (x > 0) {
+    /* Keep a running total
+       until the loop finishes. */
     total = total + x;
 
     if (total >= 5) {

@@ -1,0 +1,53 @@
+// Large integration program that exercises most language features
+int i = 6;
+int total = 0;
+int evenCount = 0;
+int oddCount = 0;
+bool hitThreshold = false;
+string status = "boot";
+string summary = "values:";
+
+/* Walk down from 6 and track
+   multiple kinds of state. */
+while (i > 0 && !hitThreshold) {
+    total = total + i;
+    summary = summary + " " + "step";
+
+    if (i % 2 == 0 && i >= 2) {
+        evenCount = evenCount + 1;
+        print "even";
+    } else {
+        oddCount = oddCount + 1;
+        print "odd";
+    }
+
+    if (total >= 10 && !hitThreshold) {
+        hitThreshold = true;
+        status = "threshold reached";
+    } else {
+        status = "counting";
+    }
+
+    print status;
+
+    if (i == 3 && i != 2) {
+        print "middle";
+    }
+
+    if (i > 1 && i < 10) {
+        print "range";
+    }
+
+    if (i >= 1 && i <= 6) {
+        print "bounded";
+    }
+
+    i = i - 1;
+}
+
+print total;
+print evenCount;
+print oddCount;
+print hitThreshold;
+print summary;
+print "done\nfinished";

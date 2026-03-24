@@ -1,0 +1,19 @@
+// Comparison operators and && in conditions
+int x = 7;
+int y = 4;
+
+if (x > y && x != 0) {
+    print "x larger";
+} else {
+    print "unexpected";
+}
+
+if (x == y) {
+    print "equal";
+} else {
+    print "not equal";
+}
+
+if (x >= y && y <= x) {
+    print "bounds ok";
+}

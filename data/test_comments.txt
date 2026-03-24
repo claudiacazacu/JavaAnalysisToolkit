@@ -1,0 +1,9 @@
+// Single-line comment
+int value = 2;
+
+/* Multi-line comment
+   that should be ignored by the lexer. */
+string label = "comment test";
+
+print label;
+print value * 5;

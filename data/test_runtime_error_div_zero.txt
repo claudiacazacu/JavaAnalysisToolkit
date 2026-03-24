@@ -1,0 +1,6 @@
+// Should fail at runtime: division by zero
+int x = 10;
+int y = 0;
+int z = x / y;
+
+print z;

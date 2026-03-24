@@ -1,0 +1,8 @@
+// Boolean literals and unary negation
+bool featureEnabled = true;
+bool isBlocked = false;
+bool shouldRun = !isBlocked;
+
+print featureEnabled;
+print isBlocked;
+print shouldRun;

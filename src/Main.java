@@ -3,7 +3,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        String filePath = "data/program.txt";
+        String filePath = args.length > 0 ? args[0] : "data/program.txt";
 
         try {
             String code = Files.readString(Path.of(filePath));
@@ -27,7 +27,7 @@ public class Main {
 
         } catch (Exception e) {
             System.err.println("Execution failed: " + e.getMessage());
-            System.err.println("Make sure 'data/program.txt' exists and contains valid code.");
+            System.err.println("Make sure the selected input file exists and contains valid code.");
         }
     }
 }

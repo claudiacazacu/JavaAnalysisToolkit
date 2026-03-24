@@ -103,6 +103,25 @@ Run:
 java -cp out Main
 ```
 
+Run a specific test file:
+
+```bash
+java -cp out Main data\test_everything.txt
+```
+
+Available sample programs in `data\` include:
+
+- `program.txt` - current default sample
+- `test_arithmetic.txt` - arithmetic, unary minus, modulo
+- `test_strings.txt` - string concatenation and escapes
+- `test_booleans.txt` - boolean literals and `!`
+- `test_comparisons.txt` - comparisons and `&&`
+- `test_if_while.txt` - `if` / `else` plus `while`
+- `test_comments.txt` - line and block comments
+- `test_static_error_undeclared.txt` - expected static analysis failure
+- `test_runtime_error_div_zero.txt` - expected runtime failure
+- `test_everything.txt` - larger integration example
+
 ## Current Scope
 
 This project is currently a compact educational interpreter rather than a full compiler or production-grade language toolchain. It is designed to demonstrate language-processing fundamentals in a simple and readable codebase.

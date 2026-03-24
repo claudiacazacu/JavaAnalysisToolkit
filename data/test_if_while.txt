@@ -1,0 +1,16 @@
+// if / else and while together
+int countdown = 4;
+int sum = 0;
+
+while (countdown > 0) {
+    if (countdown % 2 == 0) {
+        print "even step";
+    } else {
+        print "odd step";
+    }
+
+    sum = sum + countdown;
+    countdown = countdown - 1;
+}
+
+print sum;

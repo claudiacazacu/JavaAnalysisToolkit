@@ -1,0 +1,9 @@
+// String literals, escapes, and concatenation
+string hello = "Hello";
+string target = "World";
+string message = hello + " " + target;
+string multiline = "Line1\nLine2";
+
+print message;
+print multiline;
+print "Quote: \"ok\"";

@@ -1,0 +1,11 @@
+// Arithmetic, unary minus, modulo, and reassignment
+int a = 10;
+int b = 3;
+int result = a + b * 2;
+
+print result;
+result = result - 4;
+print result;
+print a / b;
+print a % b;
+print -b;

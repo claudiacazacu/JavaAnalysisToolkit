@@ -43,13 +43,7 @@ public class StaticAnalyzer {
         }
 
         if (matchKeyword("if")) {
-            consume(TokenType.LPAREN, "Expected '(' after 'if'.");
-            parseCondition();
-            consume(TokenType.RPAREN, "Expected ')' after if condition.");
-            parseBlock();
-            if (matchKeyword("else")) {
-                parseBlock();
-            }
+            parseIfStatement();
             return;
         }
 
@@ -84,6 +78,20 @@ public class StaticAnalyzer {
             parseStatement();
         }
         consume(TokenType.RBRACE, "Expected '}' to close the block.");
+    }
+
+    private void parseIfStatement() {
+        consume(TokenType.LPAREN, "Expected '(' after 'if'.");
+        parseCondition();
+        consume(TokenType.RPAREN, "Expected ')' after if condition.");
+        parseBlock();
+        if (matchKeyword("else")) {
+            if (matchKeyword("if")) {
+                parseIfStatement();
+            } else {
+                parseBlock();
+            }
+        }
     }
 
     private void parseCondition() {

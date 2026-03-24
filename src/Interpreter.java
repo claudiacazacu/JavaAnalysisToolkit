@@ -72,22 +72,29 @@ public class Interpreter {
         int blockStart = pos;
         int blockEnd = findBlockEnd(blockStart);
         int nextPos = blockEnd + 1;
-        boolean hasElse = nextPos < tokens.size()
-                && tokens.get(nextPos).type == TokenType.KEYWORD
-                && tokens.get(nextPos).value.equals("else");
-        int elseBlockStart = -1;
-        int elseBlockEnd = -1;
-        if (hasElse) {
-            elseBlockStart = nextPos + 1;
-            elseBlockEnd = findBlockEnd(elseBlockStart);
-        }
+        boolean hasElse = isKeywordAt(nextPos, "else");
 
         if (evaluateCondition(conditionStart, conditionEnd)) {
             executeRange(blockStart + 1, blockEnd);
-        } else if (hasElse) {
-            executeRange(elseBlockStart + 1, elseBlockEnd);
+            pos = hasElse ? findElseBranchEnd(nextPos) : nextPos;
+            return;
         }
-        pos = hasElse ? elseBlockEnd + 1 : nextPos;
+
+        if (!hasElse) {
+            pos = nextPos;
+            return;
+        }
+
+        int elseStart = nextPos + 1;
+        if (isKeywordAt(elseStart, "if")) {
+            pos = elseStart + 1;
+            executeIf();
+            return;
+        }
+
+        int elseBlockEnd = findBlockEnd(elseStart);
+        executeRange(elseStart + 1, elseBlockEnd);
+        pos = elseBlockEnd + 1;
     }
 
     private void executeWhile() {
@@ -133,6 +140,48 @@ public class Interpreter {
         }
 
         throw error(tokens.get(blockStart), "Missing '}' to close the block.");
+    }
+
+    private int findElseBranchEnd(int elseTokenPos) {
+        int elseStart = elseTokenPos + 1;
+        if (isKeywordAt(elseStart, "if")) {
+            return findIfStatementEnd(elseStart);
+        }
+        return findBlockEnd(elseStart) + 1;
+    }
+
+    private int findIfStatementEnd(int ifTokenPos) {
+        if (!isKeywordAt(ifTokenPos, "if")) {
+            throw error(tokens.get(ifTokenPos), "Expected 'if' to start an else-if branch.");
+        }
+
+        int conditionStart = ifTokenPos + 1;
+        if (conditionStart >= tokens.size() || tokens.get(conditionStart).type != TokenType.LPAREN) {
+            throw error(tokens.get(ifTokenPos), "Expected '(' after 'if'.");
+        }
+
+        int conditionEnd = findMatchingRightParen(conditionStart);
+        int blockStart = conditionEnd + 1;
+        int blockEnd = findBlockEnd(blockStart);
+        int nextPos = blockEnd + 1;
+        return isKeywordAt(nextPos, "else") ? findElseBranchEnd(nextPos) : nextPos;
+    }
+
+    private int findMatchingRightParen(int leftParenPos) {
+        int depth = 0;
+        for (int i = leftParenPos; i < tokens.size(); i++) {
+            Token token = tokens.get(i);
+            if (token.type == TokenType.LPAREN) {
+                depth++;
+            } else if (token.type == TokenType.RPAREN) {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+
+        throw error(tokens.get(leftParenPos), "Missing ')' to close condition.");
     }
 
     private boolean evaluateCondition(int startInclusive, int endExclusive) {
@@ -399,6 +448,12 @@ public class Interpreter {
                 || type == TokenType.LESS_EQUAL
                 || type == TokenType.GREATER
                 || type == TokenType.GREATER_EQUAL;
+    }
+
+    private boolean isKeywordAt(int index, String keyword) {
+        return index < tokens.size()
+                && tokens.get(index).type == TokenType.KEYWORD
+                && tokens.get(index).value.equals(keyword);
     }
 
     private boolean matchKeyword(String keyword) {

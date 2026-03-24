@@ -37,6 +37,7 @@ At the moment, the project can read a source file, tokenize it, validate the pro
 - `print` statements
 - `if` blocks
 - `if` / `else` blocks
+- `else if` chains
 - `while` loops
 - Boolean condition chaining with `&&`
 - Boolean condition chaining with `||`
@@ -51,13 +52,16 @@ At the moment, the project can read a source file, tokenize it, validate the pro
 ## Example Program
 
 ```txt
-// Even / odd demo with modulo, &&, and ||
+// Even / odd demo with modulo, &&, ||, and else if
 int x = 5;
 int evenCount = 0;
 int oddCount = 0;
 
 while (x > 0) {
-    if (x == 5 || x % 2 == 0 && x > 1) {
+    if (x == 5) {
+        print "special";
+        evenCount = evenCount + 1;
+    } else if (x % 2 == 0 && x > 1 || x == 1) {
         evenCount = evenCount + 1;
         print "even";
     } else {

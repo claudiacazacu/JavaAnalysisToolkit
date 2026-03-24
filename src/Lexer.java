@@ -93,6 +93,9 @@ public class Lexer {
             } else if (curr == '/') {
                 tokens.add(token(TokenType.SLASH, "/"));
                 advance();
+            } else if (curr == '%') {
+                tokens.add(token(TokenType.PERCENT, "%"));
+                advance();
             } else if (curr == '(') {
                 tokens.add(token(TokenType.LPAREN, "("));
                 advance();

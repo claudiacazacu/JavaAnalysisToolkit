@@ -18,6 +18,7 @@ enum TokenType {
     MINUS,
     STAR,
     SLASH,
+    PERCENT,
     LPAREN,
     RPAREN,
     LBRACE,

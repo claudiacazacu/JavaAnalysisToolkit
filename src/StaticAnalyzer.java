@@ -112,11 +112,11 @@ public class StaticAnalyzer {
 
     private ValueType parseTerm() {
         ValueType type = parseUnary();
-        while (match(TokenType.STAR) || match(TokenType.SLASH)) {
+        while (match(TokenType.STAR) || match(TokenType.SLASH) || match(TokenType.PERCENT)) {
             Token operator = previous();
             ValueType rightType = parseUnary();
             if (type != ValueType.INT || rightType != ValueType.INT) {
-                throw error(operator, "Operators '*' and '/' only support 'int' operands.");
+                throw error(operator, "Operators '*', '/', and '%' only support 'int' operands.");
             }
             type = ValueType.INT;
         }

@@ -1,29 +1,19 @@
-// Countdown with state tracking
-int x = 3;
-int total = 0;
-bool crossedThreshold = false;
-string status = "starting";
+// Even / odd demo with modulo
+int x = 5;
+int evenCount = 0;
+int oddCount = 0;
 
 while (x > 0) {
-    /* Keep a running total
-       until the loop finishes. */
-    total = total + x;
-
-    if (total >= 5) {
-        crossedThreshold = true;
-        status = "threshold reached";
+    if (x % 2 == 0) {
+        evenCount = evenCount + 1;
+        print "even";
     } else {
-        status = "still below threshold";
+        oddCount = oddCount + 1;
+        print "odd";
     }
 
-    print status;
     x = x - 1;
 }
 
-if (!crossedThreshold) {
-    print "unexpected";
-} else {
-    print "done";
-}
-
-print total;
+print evenCount;
+print oddCount;

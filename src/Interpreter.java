@@ -191,7 +191,7 @@ public class Interpreter {
 
     private RuntimeValue parseTerm() {
         RuntimeValue value = parseFactor();
-        while (match(TokenType.STAR) || match(TokenType.SLASH)) {
+        while (match(TokenType.STAR) || match(TokenType.SLASH) || match(TokenType.PERCENT)) {
             Token operator = previous();
             RuntimeValue right = parseFactor();
             value = applyMultiplicativeOperator(value, right, operator);
@@ -249,7 +249,7 @@ public class Interpreter {
 
     private RuntimeValue parseTerm(ExpressionCursor cursor) {
         RuntimeValue value = parseFactor(cursor);
-        while (cursor.match(TokenType.STAR) || cursor.match(TokenType.SLASH)) {
+        while (cursor.match(TokenType.STAR) || cursor.match(TokenType.SLASH) || cursor.match(TokenType.PERCENT)) {
             Token operator = cursor.previous();
             RuntimeValue right = parseFactor(cursor);
             value = applyMultiplicativeOperator(value, right, operator);
@@ -314,16 +314,19 @@ public class Interpreter {
 
     private RuntimeValue applyMultiplicativeOperator(RuntimeValue left, RuntimeValue right, Token operator) {
         if (left.type() != ValueType.INT || right.type() != ValueType.INT) {
-            throw error(operator, "Operators '*' and '/' only support 'int' operands.");
+            throw error(operator, "Operators '*', '/', and '%' only support 'int' operands.");
         }
 
-        if (operator.type == TokenType.SLASH && right.asInt() == 0) {
-            throw error(operator, "Division by zero is not allowed.");
+        if ((operator.type == TokenType.SLASH || operator.type == TokenType.PERCENT) && right.asInt() == 0) {
+            throw error(operator, "Division or modulo by zero is not allowed.");
         }
 
-        int result = operator.type == TokenType.STAR
-                ? left.asInt() * right.asInt()
-                : left.asInt() / right.asInt();
+        int result = switch (operator.type) {
+            case STAR -> left.asInt() * right.asInt();
+            case SLASH -> left.asInt() / right.asInt();
+            case PERCENT -> left.asInt() % right.asInt();
+            default -> throw error(operator, "Invalid multiplicative operator '" + operator.value + "'.");
+        };
         return new RuntimeValue(ValueType.INT, result);
     }
 

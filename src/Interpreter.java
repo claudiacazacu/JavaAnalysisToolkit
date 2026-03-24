@@ -137,13 +137,22 @@ public class Interpreter {
 
     private boolean evaluateCondition(int startInclusive, int endExclusive) {
         ExpressionCursor cursor = new ExpressionCursor(startInclusive, endExclusive);
+        boolean result = evaluateConditionConjunction(cursor);
+        while (cursor.match(TokenType.OR_OR)) {
+            boolean next = evaluateConditionConjunction(cursor);
+            result = result || next;
+        }
+        if (cursor.hasNext()) {
+            throw error(cursor.peek(), "Unexpected token in condition.");
+        }
+        return result;
+    }
+
+    private boolean evaluateConditionConjunction(ExpressionCursor cursor) {
         boolean result = evaluateConditionAtom(cursor);
         while (cursor.match(TokenType.AND_AND)) {
             boolean next = evaluateConditionAtom(cursor);
             result = result && next;
-        }
-        if (cursor.hasNext()) {
-            throw error(cursor.peek(), "Unexpected token in condition.");
         }
         return result;
     }
@@ -191,6 +200,13 @@ public class Interpreter {
     }
 
     private void parseCondition() {
+        parseConditionConjunction();
+        while (match(TokenType.OR_OR)) {
+            parseConditionConjunction();
+        }
+    }
+
+    private void parseConditionConjunction() {
         parseConditionAtom();
         while (match(TokenType.AND_AND)) {
             parseConditionAtom();

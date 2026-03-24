@@ -87,6 +87,13 @@ public class StaticAnalyzer {
     }
 
     private void parseCondition() {
+        parseConjunction();
+        while (match(TokenType.OR_OR)) {
+            parseConjunction();
+        }
+    }
+
+    private void parseConjunction() {
         parseConditionAtom();
         while (match(TokenType.AND_AND)) {
             parseConditionAtom();

@@ -65,6 +65,10 @@ public class Lexer {
                 tokens.add(token(TokenType.AND_AND, "&&"));
                 advance();
                 advance();
+            } else if (curr == '|' && peekNext() == '|') {
+                tokens.add(token(TokenType.OR_OR, "||"));
+                advance();
+                advance();
             } else if (curr == '!') {
                 tokens.add(token(TokenType.BANG, "!"));
                 advance();

@@ -8,6 +8,7 @@ enum TokenType {
     BOOLEAN_LITERAL,
     BANG,
     AND_AND,
+    OR_OR,
     ASSIGN,
     EQUAL_EQUAL,
     BANG_EQUAL,

@@ -6,6 +6,7 @@ enum TokenType {
     NUMBER,
     STRING_LITERAL,
     BOOLEAN_LITERAL,
+    BANG,
     ASSIGN,
     EQUAL_EQUAL,
     BANG_EQUAL,

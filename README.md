@@ -25,6 +25,7 @@ At the moment, the project can read a source file, tokenize it, validate the pro
   - `*`
   - `/`
 - String concatenation with `+`
+- Boolean negation with unary `!`
 - Unary minus support
 - Parenthesized expressions
 - Boolean literals: `true`, `false`
@@ -69,10 +70,10 @@ while (x > 0) {
     x = x - 1;
 }
 
-if (crossedThreshold) {
-    print "done";
+if (!crossedThreshold) {
+    print "unexpected";
 } else {
-    print "never reached";
+    print "done";
 }
 
 print total;

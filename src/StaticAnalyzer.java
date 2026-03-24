@@ -124,6 +124,15 @@ public class StaticAnalyzer {
     }
 
     private ValueType parseUnary() {
+        if (match(TokenType.BANG)) {
+            Token operator = previous();
+            ValueType operandType = parseUnary();
+            if (operandType != ValueType.BOOL) {
+                throw error(operator, "Unary '!' only supports 'bool' operands.");
+            }
+            return ValueType.BOOL;
+        }
+
         if (match(TokenType.MINUS)) {
             Token operator = previous();
             ValueType operandType = parseUnary();
@@ -159,7 +168,7 @@ public class StaticAnalyzer {
             return type;
         }
 
-        throw error(peek(), "Expected a number, variable, or parenthesized expression.");
+        throw error(peek(), "Expected a literal, variable, or parenthesized expression.");
     }
 
     private ValueType mergeAdditiveTypes(Token operator, ValueType leftType, ValueType rightType) {

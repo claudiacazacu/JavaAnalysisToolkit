@@ -20,10 +20,10 @@ while (x > 0) {
     x = x - 1;
 }
 
-if (crossedThreshold) {
-    print "done";
+if (!crossedThreshold) {
+    print "unexpected";
 } else {
-    print "never reached";
+    print "done";
 }
 
 print total;

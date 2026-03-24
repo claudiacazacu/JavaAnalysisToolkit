@@ -61,6 +61,9 @@ public class Lexer {
                 tokens.add(token(TokenType.BANG_EQUAL, "!="));
                 advance();
                 advance();
+            } else if (curr == '!') {
+                tokens.add(token(TokenType.BANG, "!"));
+                advance();
             } else if (curr == '<' && peekNext() == '=') {
                 tokens.add(token(TokenType.LESS_EQUAL, "<="));
                 advance();

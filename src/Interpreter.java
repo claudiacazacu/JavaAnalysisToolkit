@@ -200,6 +200,15 @@ public class Interpreter {
     }
 
     private RuntimeValue parseFactor() {
+        if (match(TokenType.BANG)) {
+            Token operator = previous();
+            RuntimeValue value = parseFactor();
+            if (value.type() != ValueType.BOOL) {
+                throw error(operator, "Unary '!' only supports 'bool' operands.");
+            }
+            return new RuntimeValue(ValueType.BOOL, !value.asBoolean());
+        }
+
         if (match(TokenType.MINUS)) {
             Token operator = previous();
             RuntimeValue value = parseFactor();
@@ -225,7 +234,7 @@ public class Interpreter {
             consume(TokenType.RPAREN, "Expected ')' after expression.");
             return value;
         }
-        throw error("Expected a number, variable, or parenthesized expression.");
+        throw error("Expected a literal, variable, or parenthesized expression.");
     }
 
     private RuntimeValue parseExpression(ExpressionCursor cursor) {
@@ -249,6 +258,15 @@ public class Interpreter {
     }
 
     private RuntimeValue parseFactor(ExpressionCursor cursor) {
+        if (cursor.match(TokenType.BANG)) {
+            Token operator = cursor.previous();
+            RuntimeValue value = parseFactor(cursor);
+            if (value.type() != ValueType.BOOL) {
+                throw error(operator, "Unary '!' only supports 'bool' operands.");
+            }
+            return new RuntimeValue(ValueType.BOOL, !value.asBoolean());
+        }
+
         if (cursor.match(TokenType.MINUS)) {
             Token operator = cursor.previous();
             RuntimeValue value = parseFactor(cursor);
@@ -274,7 +292,7 @@ public class Interpreter {
             cursor.consume(TokenType.RPAREN, "Expected ')' after expression.");
             return value;
         }
-        throw error(cursor.peek(), "Expected a number, variable, or parenthesized expression.");
+        throw error(cursor.peek(), "Expected a literal, variable, or parenthesized expression.");
     }
 
     private RuntimeValue applyAdditiveOperator(RuntimeValue left, RuntimeValue right, Token operator) {

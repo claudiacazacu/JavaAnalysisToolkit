@@ -137,13 +137,22 @@ public class Interpreter {
 
     private boolean evaluateCondition(int startInclusive, int endExclusive) {
         ExpressionCursor cursor = new ExpressionCursor(startInclusive, endExclusive);
-        RuntimeValue left = parseExpression(cursor);
+        boolean result = evaluateConditionAtom(cursor);
+        while (cursor.match(TokenType.AND_AND)) {
+            boolean next = evaluateConditionAtom(cursor);
+            result = result && next;
+        }
         if (cursor.hasNext()) {
+            throw error(cursor.peek(), "Unexpected token in condition.");
+        }
+        return result;
+    }
+
+    private boolean evaluateConditionAtom(ExpressionCursor cursor) {
+        RuntimeValue left = parseExpression(cursor);
+        if (cursor.checkComparisonOperator()) {
             Token operator = cursor.advance();
             RuntimeValue right = parseExpression(cursor);
-            if (cursor.hasNext()) {
-                throw error(cursor.peek(), "Unexpected token in condition.");
-            }
             return compare(left, right, operator);
         }
         if (left.type() == ValueType.BOOL) {
@@ -182,6 +191,13 @@ public class Interpreter {
     }
 
     private void parseCondition() {
+        parseConditionAtom();
+        while (match(TokenType.AND_AND)) {
+            parseConditionAtom();
+        }
+    }
+
+    private void parseConditionAtom() {
         parseExpression();
         if (isComparisonOperator(peek().type)) {
             advance();
@@ -452,6 +468,10 @@ public class Interpreter {
                 return advance();
             }
             throw error(peek(), message);
+        }
+
+        private boolean checkComparisonOperator() {
+            return hasNext() && isComparisonOperator(peek().type);
         }
 
         private boolean check(TokenType type) {

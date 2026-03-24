@@ -44,7 +44,7 @@ public class StaticAnalyzer {
 
         if (matchKeyword("if")) {
             consume(TokenType.LPAREN, "Expected '(' after 'if'.");
-            parseCondition(peek());
+            parseCondition();
             consume(TokenType.RPAREN, "Expected ')' after if condition.");
             parseBlock();
             if (matchKeyword("else")) {
@@ -55,7 +55,7 @@ public class StaticAnalyzer {
 
         if (matchKeyword("while")) {
             consume(TokenType.LPAREN, "Expected '(' after 'while'.");
-            parseCondition(peek());
+            parseCondition();
             consume(TokenType.RPAREN, "Expected ')' after while condition.");
             parseBlock();
             return;
@@ -86,7 +86,15 @@ public class StaticAnalyzer {
         consume(TokenType.RBRACE, "Expected '}' to close the block.");
     }
 
-    private void parseCondition(Token conditionToken) {
+    private void parseCondition() {
+        parseConditionAtom();
+        while (match(TokenType.AND_AND)) {
+            parseConditionAtom();
+        }
+    }
+
+    private void parseConditionAtom() {
+        Token conditionToken = peek();
         ValueType leftType = parseExpression();
         if (isComparisonOperator(peek().type)) {
             Token operator = advance();

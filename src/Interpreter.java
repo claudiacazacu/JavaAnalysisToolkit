@@ -307,6 +307,16 @@ public class Interpreter {
         if (match(TokenType.BOOLEAN_LITERAL)) {
             return new RuntimeValue(ValueType.BOOL, Boolean.parseBoolean(previous().value));
         }
+        if (isBuiltinLenCall()) {
+            Token lenToken = advance();
+            consume(TokenType.LPAREN, "Expected '(' after 'len'.");
+            RuntimeValue argument = parseExpression();
+            if (argument.type() != ValueType.STRING) {
+                throw error(lenToken, "Builtin 'len' only accepts 'string' expressions.");
+            }
+            consume(TokenType.RPAREN, "Expected ')' after len argument.");
+            return new RuntimeValue(ValueType.INT, argument.asString().length());
+        }
         if (match(TokenType.IDENTIFIER)) {
             return requireDeclaredValue(previous());
         }
@@ -364,6 +374,16 @@ public class Interpreter {
         }
         if (cursor.match(TokenType.BOOLEAN_LITERAL)) {
             return new RuntimeValue(ValueType.BOOL, Boolean.parseBoolean(cursor.previous().value));
+        }
+        if (cursor.isBuiltinLenCall()) {
+            Token lenToken = cursor.advance();
+            cursor.consume(TokenType.LPAREN, "Expected '(' after 'len'.");
+            RuntimeValue argument = parseExpression(cursor);
+            if (argument.type() != ValueType.STRING) {
+                throw error(lenToken, "Builtin 'len' only accepts 'string' expressions.");
+            }
+            cursor.consume(TokenType.RPAREN, "Expected ')' after len argument.");
+            return new RuntimeValue(ValueType.INT, argument.asString().length());
         }
         if (cursor.match(TokenType.IDENTIFIER)) {
             return requireDeclaredValue(cursor.previous());
@@ -456,6 +476,12 @@ public class Interpreter {
                 && tokens.get(index).value.equals(keyword);
     }
 
+    private boolean isBuiltinLenCall() {
+        return check(TokenType.IDENTIFIER)
+                && peek().value.equals("len")
+                && checkNext(TokenType.LPAREN);
+    }
+
     private boolean matchKeyword(String keyword) {
         if (check(TokenType.KEYWORD) && peek().value.equals(keyword)) {
             advance();
@@ -481,6 +507,10 @@ public class Interpreter {
 
     private boolean check(TokenType type) {
         return peek().type == type;
+    }
+
+    private boolean checkNext(TokenType type) {
+        return pos + 1 < tokens.size() && tokens.get(pos + 1).type == type;
     }
 
     private Token advance() {
@@ -545,8 +575,18 @@ public class Interpreter {
             return hasNext() && isComparisonOperator(peek().type);
         }
 
+        private boolean isBuiltinLenCall() {
+            return check(TokenType.IDENTIFIER)
+                    && peek().value.equals("len")
+                    && checkNext(TokenType.LPAREN);
+        }
+
         private boolean check(TokenType type) {
             return hasNext() && peek().type == type;
+        }
+
+        private boolean checkNext(TokenType type) {
+            return cursorPos + 1 < endExclusive && tokens.get(cursorPos + 1).type == type;
         }
 
         private Token advance() {

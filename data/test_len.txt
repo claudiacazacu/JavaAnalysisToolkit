@@ -1,0 +1,7 @@
+string word = "toolkit";
+int letters = len(word);
+int combined = len("ab" + "cd");
+
+print letters;
+print combined;
+print len("x");

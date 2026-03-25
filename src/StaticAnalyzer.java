@@ -180,6 +180,17 @@ public class StaticAnalyzer {
             return ValueType.BOOL;
         }
 
+        if (isBuiltinLenCall()) {
+            Token lenToken = advance();
+            consume(TokenType.LPAREN, "Expected '(' after 'len'.");
+            ValueType argumentType = parseExpression();
+            if (argumentType != ValueType.STRING) {
+                throw error(lenToken, "Builtin 'len' only accepts 'string' expressions.");
+            }
+            consume(TokenType.RPAREN, "Expected ')' after len argument.");
+            return ValueType.INT;
+        }
+
         if (match(TokenType.IDENTIFIER)) {
             Token identifier = previous();
             return requireDeclaredVariable(identifier);
@@ -255,6 +266,12 @@ public class StaticAnalyzer {
                 || type == TokenType.GREATER_EQUAL;
     }
 
+    private boolean isBuiltinLenCall() {
+        return check(TokenType.IDENTIFIER)
+                && peek().value.equals("len")
+                && checkNext(TokenType.LPAREN);
+    }
+
     private boolean matchKeyword(String value) {
         if (check(TokenType.KEYWORD) && peek().value.equals(value)) {
             advance();
@@ -280,6 +297,10 @@ public class StaticAnalyzer {
 
     private boolean check(TokenType type) {
         return peek().type == type;
+    }
+
+    private boolean checkNext(TokenType type) {
+        return pos + 1 < tokens.size() && tokens.get(pos + 1).type == type;
     }
 
     private Token advance() {

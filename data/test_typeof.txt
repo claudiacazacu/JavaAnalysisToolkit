@@ -1,0 +1,9 @@
+int count = 3;
+bool active = true;
+string label = "demo";
+
+print typeof(count);
+print typeof(active);
+print typeof(label);
+print typeof(count + 2);
+print typeof(label + "!");

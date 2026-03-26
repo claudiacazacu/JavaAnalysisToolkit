@@ -27,6 +27,7 @@ At the moment, the project can read a source file, tokenize it, validate the pro
   - `%`
 - String concatenation with `+`
 - Builtin string length with `len(...)`
+- Builtin type introspection with `typeof(...)`
 - Boolean negation with unary `!`
 - Unary minus support
 - Parenthesized expressions
@@ -121,6 +122,7 @@ Available sample programs in `data\` include:
 - `test_arithmetic.txt` - arithmetic, unary minus, modulo
 - `test_strings.txt` - string concatenation and escapes
 - `test_len.txt` - builtin `len(...)` for string expressions
+- `test_typeof.txt` - builtin `typeof(...)` for expression types
 - `test_booleans.txt` - boolean literals and `!`
 - `test_comparisons.txt` - comparisons and `&&`
 - `test_if_while.txt` - `if` / `else` plus `while`

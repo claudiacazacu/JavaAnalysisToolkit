@@ -317,6 +317,13 @@ public class Interpreter {
             consume(TokenType.RPAREN, "Expected ')' after len argument.");
             return new RuntimeValue(ValueType.INT, argument.asString().length());
         }
+        if (isBuiltinTypeofCall()) {
+            advance();
+            consume(TokenType.LPAREN, "Expected '(' after 'typeof'.");
+            RuntimeValue argument = parseExpression();
+            consume(TokenType.RPAREN, "Expected ')' after typeof argument.");
+            return new RuntimeValue(ValueType.STRING, argument.type().keyword());
+        }
         if (match(TokenType.IDENTIFIER)) {
             return requireDeclaredValue(previous());
         }
@@ -384,6 +391,13 @@ public class Interpreter {
             }
             cursor.consume(TokenType.RPAREN, "Expected ')' after len argument.");
             return new RuntimeValue(ValueType.INT, argument.asString().length());
+        }
+        if (cursor.isBuiltinTypeofCall()) {
+            cursor.advance();
+            cursor.consume(TokenType.LPAREN, "Expected '(' after 'typeof'.");
+            RuntimeValue argument = parseExpression(cursor);
+            cursor.consume(TokenType.RPAREN, "Expected ')' after typeof argument.");
+            return new RuntimeValue(ValueType.STRING, argument.type().keyword());
         }
         if (cursor.match(TokenType.IDENTIFIER)) {
             return requireDeclaredValue(cursor.previous());
@@ -479,6 +493,12 @@ public class Interpreter {
     private boolean isBuiltinLenCall() {
         return check(TokenType.IDENTIFIER)
                 && peek().value.equals("len")
+                && checkNext(TokenType.LPAREN);
+    }
+
+    private boolean isBuiltinTypeofCall() {
+        return check(TokenType.IDENTIFIER)
+                && peek().value.equals("typeof")
                 && checkNext(TokenType.LPAREN);
     }
 
@@ -578,6 +598,12 @@ public class Interpreter {
         private boolean isBuiltinLenCall() {
             return check(TokenType.IDENTIFIER)
                     && peek().value.equals("len")
+                    && checkNext(TokenType.LPAREN);
+        }
+
+        private boolean isBuiltinTypeofCall() {
+            return check(TokenType.IDENTIFIER)
+                    && peek().value.equals("typeof")
                     && checkNext(TokenType.LPAREN);
         }
 

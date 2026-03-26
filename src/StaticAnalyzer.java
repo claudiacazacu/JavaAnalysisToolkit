@@ -191,6 +191,14 @@ public class StaticAnalyzer {
             return ValueType.INT;
         }
 
+        if (isBuiltinTypeofCall()) {
+            advance();
+            consume(TokenType.LPAREN, "Expected '(' after 'typeof'.");
+            parseExpression();
+            consume(TokenType.RPAREN, "Expected ')' after typeof argument.");
+            return ValueType.STRING;
+        }
+
         if (match(TokenType.IDENTIFIER)) {
             Token identifier = previous();
             return requireDeclaredVariable(identifier);
@@ -269,6 +277,12 @@ public class StaticAnalyzer {
     private boolean isBuiltinLenCall() {
         return check(TokenType.IDENTIFIER)
                 && peek().value.equals("len")
+                && checkNext(TokenType.LPAREN);
+    }
+
+    private boolean isBuiltinTypeofCall() {
+        return check(TokenType.IDENTIFIER)
+                && peek().value.equals("typeof")
                 && checkNext(TokenType.LPAREN);
     }
 
